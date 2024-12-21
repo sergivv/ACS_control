@@ -1,4 +1,5 @@
 #include <Wire.h>
+#include <PubSubClient.h>
 #include <Adafruit_GFX.h>
 #include <Adafruit_SSD1306.h>
 #include <WiFi.h>
@@ -16,6 +17,14 @@
 // Pin del DS18B20
 #define ONE_WIRE_BUS 4
 
+// Configuración del servidor MQTT
+const char *servidor_mqtt = "192.168.3.1";
+const int puerto_mqtt = 7983;
+const char *topic_mqtt = "/test/message";
+
+WiFiClient espClient;
+PubSubClient client(espClient);
+
 // Configuración de objetos
 Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire);
 OneWire oneWire(ONE_WIRE_BUS);
@@ -23,6 +32,44 @@ DallasTemperature sensors(&oneWire);
 
 // Variables de medición
 float temperatura = 0.0;
+
+void connectToMQTT()
+{
+  // Conexión al broker MQTT
+  while (!client.connected())
+  {
+    Serial.println("Conectando al broker MQTT...");
+    if (client.connect("ESP32Client"))
+    { // Identificador único para el cliente
+      Serial.println("Conectado al broker MQTT!");
+    }
+    else
+    {
+      Serial.print("Fallo, rc=");
+      Serial.print(client.state());
+      Serial.println(" Reintentando en 5 segundos...");
+      delay(5000);
+    }
+  }
+}
+
+void publishTemperature()
+{
+  // Convertir temperatura a cadena
+  char tempString[10];
+  dtostrf(temperatura, 5, 1, tempString);
+
+  // Publicar en el tema MQTT
+  if (client.publish(topic_mqtt, tempString))
+  {
+    Serial.print("Temperatura publicada: ");
+    Serial.println(tempString);
+  }
+  else
+  {
+    Serial.println("Error al publicar temperatura");
+  }
+}
 
 void setup()
 {
@@ -74,10 +121,19 @@ void setup()
   display.print("IP: ");
   display.println(WiFi.localIP());
   display.display();
+
+  client.setServer(servidor_mqtt, puerto_mqtt);
 }
 
 void loop()
 {
+  // Reconecta si es necesario
+  if (!client.connected())
+  {
+    connectToMQTT();
+  }
+  client.loop();
+
   sensors.requestTemperatures();
   temperatura = sensors.getTempCByIndex(0); // Obtiene la temperatura en grados Celsius
   Serial.print("Temperatura: ");
@@ -91,6 +147,10 @@ void loop()
   display.print(temperatura, 1);
   display.println("C");
   display.display();
+
+  // Publicar en MQTT y desconecta el cliente.
+  publishTemperature();
+  client.disconnect();
 
   delay(60000); // Espera un minuto antes de la próxima medición
 }
