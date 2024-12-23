@@ -7,31 +7,37 @@
 #include <DallasTemperature.h>
 #include "config.h"
 
-// Resolución de la pantalla OLED
+// Configuración SSD1306
 #define SCREEN_WIDTH 128
 #define SCREEN_HEIGHT 32
-
-// Dirección I2C del SSD1306
 #define OLED_ADDRESS 0x3C
+Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire);
 
 // Pin del DS18B20
 #define ONE_WIRE_BUS 4
-
-// Configuración del servidor MQTT
-const char *servidor_mqtt = "192.168.3.1";
-const int puerto_mqtt = 7983;
-const char *topic_mqtt = "/test/message";
-
-WiFiClient espClient;
-PubSubClient client(espClient);
-
-// Configuración de objetos
-Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire);
 OneWire oneWire(ONE_WIRE_BUS);
 DallasTemperature sensors(&oneWire);
 
+// Conexión del cliente MQTT
+WiFiClient espClient;
+PubSubClient client(espClient);
+
 // Variables de medición
 float temperatura = 0.0;
+
+void setupOLED()
+{
+  // Inicializa la pantalla OLED
+  if (!display.begin(SSD1306_SWITCHCAPVCC, OLED_ADDRESS))
+  {
+    Serial.println("Error al inicializar OLED");
+    while (true)
+      ;
+  }
+  display.clearDisplay();
+  display.setTextSize(1);
+  display.setTextColor(SSD1306_WHITE);
+}
 
 void connectToMQTT()
 {
@@ -75,16 +81,7 @@ void setup()
 {
   Serial.begin(115200);
 
-  // Inicializa la pantalla OLED
-  if (!display.begin(SSD1306_SWITCHCAPVCC, OLED_ADDRESS))
-  {
-    Serial.println("¡Fallo al inicializar la pantalla SSD1306!");
-    while (true)
-      ;
-  }
-  display.clearDisplay();
-  display.setTextSize(1);
-  display.setTextColor(SSD1306_WHITE);
+  setupOLED();
 
   // Inicializa el sensor DS18B20
   sensors.begin();
