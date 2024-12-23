@@ -25,6 +25,8 @@ PubSubClient client(espClient);
 // Variables de medición
 float temperatura = 0.0;
 
+String mac = "";
+
 void setupOLED()
 {
   // Inicializa la pantalla OLED
@@ -37,6 +39,37 @@ void setupOLED()
   display.clearDisplay();
   display.setTextSize(1);
   display.setTextColor(SSD1306_WHITE);
+}
+
+void connectWiFi()
+{
+  if (!WiFi.config(local_IP, gateway, subnet))
+  {
+    Serial.println("Fallo en la configuración de IP estática");
+    display.setCursor(0, 0);
+    display.println("Error IP estatica");
+    display.display();
+    while (true)
+      ;
+  }
+  // Conexión Wi-Fi
+  WiFi.begin(ssid, password);
+  display.setCursor(0, 0);
+  display.println("Conectando WiFi...");
+  display.display();
+
+  while (WiFi.status() != WL_CONNECTED)
+  {
+    delay(1000);
+    Serial.println("Conectando a Wi-Fi...");
+  }
+
+  display.clearDisplay();
+  display.println("WiFi conectado!");
+  display.print("IP: ");
+  display.println(WiFi.localIP());
+  mac = WiFi.macAddress();
+  display.display();
 }
 
 void connectToMQTT()
@@ -82,43 +115,8 @@ void setup()
   Serial.begin(115200);
 
   setupOLED();
-
-  // Inicializa el sensor DS18B20
+  connectWiFi();
   sensors.begin();
-
-  // Configuración de Wi-Fi
-  if (!WiFi.config(local_IP, gateway, subnet))
-  {
-    Serial.println("Fallo en la configuración de IP estática");
-    display.setCursor(0, 0);
-    display.println("Error IP estatica");
-    display.display();
-    while (true)
-      ;
-  }
-  WiFi.begin(ssid, password);
-
-  display.setCursor(0, 0);
-  display.println("Conectando WiFi...");
-  display.display();
-
-  while (WiFi.status() != WL_CONNECTED)
-  {
-    delay(1000);
-    Serial.println("Conectando a Wi-Fi...");
-  }
-
-  Serial.println("WiFi Conectado!");
-  Serial.print("IP: ");
-  Serial.println(WiFi.localIP());
-
-  display.clearDisplay();
-  display.setCursor(0, 0);
-  display.println("WiFi Conectado");
-  display.print("IP: ");
-  display.println(WiFi.localIP());
-  display.display();
-
   client.setServer(servidor_mqtt, puerto_mqtt);
 }
 
