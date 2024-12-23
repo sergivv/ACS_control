@@ -25,7 +25,8 @@ PubSubClient client(espClient);
 // Variables de medición
 float temperatura = 0.0;
 
-String mac = "";
+unsigned long lastWiFiCheck = 0;
+const unsigned long wifiCheckInterval = 300000; // Verificar wifi cada 5 min
 
 void setupOLED()
 {
@@ -68,8 +69,27 @@ void connectWiFi()
   display.println("WiFi conectado!");
   display.print("IP: ");
   display.println(WiFi.localIP());
-  mac = WiFi.macAddress();
   display.display();
+
+  // Generamos el topic a partir de la mac
+  String macAddress = WiFi.macAddress();    // Obtiene la MAC
+  mqtt_topic = "ACS_Control/" + macAddress; // Crea el topic
+  Serial.print("Topic MQTT: ");
+  Serial.println(mqtt_topic);
+}
+
+void checkWiFiConnection()
+{
+  if (millis() - lastWiFiCheck >= wifiCheckInterval)
+  {
+    lastWiFiCheck = millis();
+    if (WiFi.status() != WL_CONNECTED)
+    {
+      Serial.println("WiFi desconectado. Intentando reconectar...");
+      WiFi.disconnect();
+      WiFi.reconnect();
+    }
+  }
 }
 
 void connectToMQTT()
@@ -99,7 +119,7 @@ void publishTemperature()
   dtostrf(temperatura, 5, 1, tempString);
 
   // Publicar en el tema MQTT
-  if (client.publish(topic_mqtt, tempString))
+  if (client.publish(mqtt_topic.c_str(), tempString))
   {
     Serial.print("Temperatura publicada: ");
     Serial.println(tempString);
@@ -122,7 +142,10 @@ void setup()
 
 void loop()
 {
-  // Reconecta si es necesario
+  // Verificar y reconectar Wi-Fi
+  checkWiFiConnection();
+
+  // Reconecta MQTT si es necesario
   if (!client.connected())
   {
     connectToMQTT();
