@@ -27,6 +27,7 @@ float temperatura = 0.0;
 
 unsigned long lastWiFiCheck = 0;
 const unsigned long wifiCheckInterval = 300000; // Verificar wifi cada 5 min
+int reintentos = 0;
 
 void setupOLED()
 {
@@ -72,8 +73,8 @@ void connectWiFi()
   display.display();
 
   // Generamos el topic a partir de la mac
-  String macAddress = WiFi.macAddress();    // Obtiene la MAC
-  mqtt_topic = "ACS_Control/" + macAddress; // Crea el topic
+  String macAddress = WiFi.macAddress();                     // Obtiene la MAC
+  mqtt_topic = "ACS_Control/" + macAddress + "/Temperatura"; // Crea el topic
   Serial.print("Topic MQTT: ");
   Serial.println(mqtt_topic);
 }
@@ -104,10 +105,19 @@ void connectToMQTT()
     }
     else
     {
-      Serial.print("Fallo, rc=");
-      Serial.print(client.state());
-      Serial.println(" Reintentando en 5 segundos...");
-      delay(5000);
+      if (reintentos < 5)
+      {
+        Serial.print("Fallo, rc=");
+        Serial.print(client.state());
+        Serial.println(" Reintentando en 5 segundos...");
+        reintentos++;
+        delay(5000);
+      }
+      else
+      {
+        reintentos = 0;
+        break;
+      }
     }
   }
 }
@@ -169,6 +179,7 @@ void loop()
   // Publicar en MQTT y desconecta el cliente.
   publishTemperature();
   client.disconnect();
+  Serial.println("Cliente desconectado...");
 
   delay(60000); // Espera un minuto antes de la próxima medición
 }
