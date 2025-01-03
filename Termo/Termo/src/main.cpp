@@ -5,6 +5,7 @@
 #include <WiFi.h>
 #include <OneWire.h>
 #include <DallasTemperature.h>
+#include <ArduinoJson.h>
 #include "config.h"
 
 // Configuración SSD1306
@@ -122,21 +123,30 @@ void connectToMQTT()
   }
 }
 
+// Publicar JSON con temperatura y MAC
 void publishTemperature()
 {
-  // Convertir temperatura a cadena
-  char tempString[10];
-  dtostrf(temperatura, 5, 1, tempString);
+  // Redondear temperatura a 1 decimal
+  float tempRedondeada = round(temperatura * 10) / 10.0;
 
-  // Publicar en el tema MQTT
-  if (client.publish(mqtt_topic.c_str(), tempString))
+  // Crear documento JSON
+  StaticJsonDocument<200> doc;
+  doc["mac"] = WiFi.macAddress();      // Dirección MAC
+  doc["temperatura"] = tempRedondeada; // Temperatura con 1 decimal
+
+  // Serializar JSON a una cadena
+  char jsonBuffer[200];
+  serializeJson(doc, jsonBuffer);
+
+  // Publicar el JSON
+  if (client.publish(mqtt_topic.c_str(), jsonBuffer))
   {
-    Serial.print("Temperatura publicada: ");
-    Serial.println(tempString);
+    Serial.print("JSON publicado: ");
+    Serial.println(jsonBuffer);
   }
   else
   {
-    Serial.println("Error al publicar temperatura");
+    Serial.println("Error al publicar JSON");
   }
 }
 
@@ -181,5 +191,5 @@ void loop()
   client.disconnect();
   Serial.println("Cliente desconectado...");
 
-  delay(60000); // Espera un minuto antes de la próxima medición
+  delay(59133); // Espera un minuto antes de la próxima medición
 }
